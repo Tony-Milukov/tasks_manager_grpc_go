@@ -1,0 +1,21 @@
+services:
+
+
+  app:
+    build:
+      context: .
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - 9800:9800
+
+
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: very_secure_password!....for_real
+      POSTGRES_DB: tasks

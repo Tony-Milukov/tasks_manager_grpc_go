@@ -1,0 +1,98 @@
+syntax = "proto3";
+package api;
+import "google/protobuf/wrappers.proto";
+option go_package = "/proto/api";
+service UserApi {
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+}
+
+service TaskApi {
+  rpc CreateTask (CreateTaskRequest) returns (CreateTaskResponse);
+  rpc DeleteTask (DeleteTaskRequest) returns (DeleteTaskResponse);
+  rpc UpdateTask (UpdateTaskRequest) returns (UpdateTaskResponse);
+  rpc CreateStatus (CreateStatusRequest) returns (CreateStatusResponse);
+  rpc DeleteStatus (DeleteStatusRequest) returns (DeleteStatusResponse);
+  rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
+}
+
+message User {
+  optional int64 id = 1;
+  string username = 2;
+}
+
+message Status {
+  optional int64 id = 3;
+  string title = 1;
+  string description = 2;
+}
+
+message CreateUserRequest {
+  string username = 1;
+}
+
+message CreateUserResponse {
+    User user = 1;
+}
+
+message Task {
+  optional int64 id = 7;
+  string title = 1;
+  string description = 2;
+  string due = 3;
+  Status status = 4;
+  int64 userId = 5;
+  optional int64 statusId = 6;
+}
+
+
+message CreateTaskRequest {
+  Task task = 1;
+}
+
+message CreateTaskResponse {
+  Task task = 1;
+}
+
+message DeleteTaskRequest {
+  string taskId = 1;
+}
+
+message DeleteTaskResponse {
+  string status = 1;
+}
+
+message UpdateTaskRequest {
+  google.protobuf.StringValue title = 1;
+  google.protobuf.StringValue description = 2;
+  google.protobuf.StringValue due = 3;
+  google.protobuf.Int64Value userId = 5;
+  google.protobuf.Int64Value statusId = 6;
+}
+
+message UpdateTaskResponse {
+  Task task = 1;
+}
+
+message CreateStatusRequest{
+  Status status = 1;
+}
+
+message CreateStatusResponse{
+  Status status = 1;
+}
+
+message DeleteStatusRequest{
+  int64 statusId = 1;
+}
+
+message DeleteStatusResponse{
+ string status = 1;
+}
+
+message UpdateStatusRequest{
+  int64 statusId = 1;
+}
+
+message UpdateStatusResponse{
+ string status = 1;
+}
