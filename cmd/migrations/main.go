@@ -22,10 +22,9 @@ func main() {
 
 	fmt.Println("Database Successfully migrated")
 }
+
 func MigrateDb(url, path, op string) error {
 	sourcePath := fmt.Sprintf("file://%s", path)
-	fmt.Printf("\n\nurl:%s", url)
-	fmt.Printf("\n\nsourcePath:%s", sourcePath)
 	m, err := migrate.New(sourcePath, url)
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
@@ -34,11 +33,11 @@ func MigrateDb(url, path, op string) error {
 	switch op {
 	case "down":
 		if err := m.Down(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-			return fmt.Errorf("migration down error: %w", err)
+			return fmt.Errorf("migration down errors: %w", err)
 		}
 	default: // Treat any non-"down" operation as "up".
 		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-			return fmt.Errorf("migration up error: %w", err)
+			return fmt.Errorf("migration up errors: %w", err)
 		}
 	}
 

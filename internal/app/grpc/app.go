@@ -8,7 +8,7 @@ import (
 	userServer "sso_3.0/internal/api/grpc/user"
 	configParser "sso_3.0/internal/config"
 	"sso_3.0/internal/services/tasks"
-	"sso_3.0/internal/services/user"
+	userService "sso_3.0/internal/services/user"
 	"strconv"
 )
 
@@ -18,7 +18,7 @@ type App struct {
 	log        *slog.Logger
 }
 
-func New(logger *slog.Logger, cfg *configParser.Config, userService *user.Service, taskService *tasks.Service) (*App, error) {
+func New(logger *slog.Logger, cfg *configParser.Config, userService *userService.Service, taskService *tasks.Service) (*App, error) {
 	const op = "app.grpc.New"
 	log := logger.With("op", op)
 	grpcServer := grpc.NewServer()
@@ -36,7 +36,7 @@ func New(logger *slog.Logger, cfg *configParser.Config, userService *user.Servic
 // run it creates tcp listener and starts grpc server
 func (s *App) run() error {
 	op := "grpc.app.RUN"
-	//setup logger
+	//setup getLogger
 	log := s.log.With("op", op)
 
 	//starting TCP listener
@@ -56,7 +56,7 @@ func (s *App) run() error {
 	return nil
 }
 
-// MustRun Runs the application, if there is an error it panics
+// MustRun Runs the application, if there is an errors it panics
 func (app *App) MustRun() {
 	if err := app.run(); err != nil {
 		panic(err)

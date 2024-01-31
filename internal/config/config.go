@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Env      string
-	DbUrl    string
-	GrpcPort string
+	Env         string
+	DbUrl       string
+	GrpcPort    string
+	TokenSecret string
 }
 
 func MustGetConfig() *Config {
@@ -22,11 +23,13 @@ func MustGetConfig() *Config {
 	fmt.Printf("%s", dbUrl)
 	env := getEnv("ENV")
 	grpcPort := getEnv("GRPC_PORT")
+	tokenSecret := getEnv("GRPC_PORT")
 
 	return &Config{
 		env,
 		dbUrl,
 		grpcPort,
+		tokenSecret,
 	}
 
 }

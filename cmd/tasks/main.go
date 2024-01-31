@@ -19,7 +19,7 @@ func main() {
 	app, err := app.New(config, log)
 	//
 	if err != nil {
-		panic(fmt.Errorf("error: %e", err))
+		panic(fmt.Errorf("errors: %e", err))
 	}
 
 	//start grpc server

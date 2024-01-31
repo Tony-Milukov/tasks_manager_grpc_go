@@ -24,7 +24,7 @@ func New(cfg *configParser.Config, log *slog.Logger) (*App, error) {
 
 	//crate services
 	taskService := tasks.New(log, storage)
-	userService := user.New(log, storage)
+	userService := userService.New(log, storage)
 
 	grpcServer, err := grpc.New(log, cfg, userService, taskService)
 
