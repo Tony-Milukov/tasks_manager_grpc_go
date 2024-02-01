@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id TEXT PRIMARY KEY,
         email VARCHAR(255) NOT NULL UNIQUE,
         password TEXT NOT NULL
 );
@@ -14,7 +14,11 @@ CREATE TABLE IF NOT EXISTS tasks (
         title VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
         statusId INT,
-        FOREIGN KEY(statusId) REFERENCES statuses(id)
+        creatorId TEXT,
+        due TIMESTAMP,
+        completed bool,
+        FOREIGN KEY(statusId) REFERENCES statuses(id),
+        FOREIGN KEY(creatorId) REFERENCES users(id)
 );
 
 

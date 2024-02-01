@@ -5,7 +5,8 @@ import (
 	"google.golang.org/grpc"
 	"log/slog"
 	"net"
-	userServer "sso_3.0/internal/api/grpc/user"
+	authServer "sso_3.0/internal/api/grpc/auth"
+	taskServer "sso_3.0/internal/api/grpc/task"
 	configParser "sso_3.0/internal/config"
 	authService "sso_3.0/internal/services/auth"
 	"sso_3.0/internal/services/tasks"
@@ -18,11 +19,12 @@ type App struct {
 	log        *slog.Logger
 }
 
-func New(logger *slog.Logger, cfg *configParser.Config, userService *authService.Service, taskService *tasks.Service) (*App, error) {
+func New(logger *slog.Logger, cfg *configParser.Config, authService *authService.Service, taskService *tasks.Service) (*App, error) {
 	const op = "app.grpc.New"
 	log := logger.With("op", op)
-	grpcServer := grpc.NewServer()
-	userServer.RegisterServer(grpcServer, userService, log)
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(authService.AuthInterceptor))
+	authServer.RegisterServer(grpcServer, authService, log)
+	taskServer.RegisterServer(grpcServer, authService, taskService, log)
 
 	log.Info("Servers successfully registered")
 	port, err := strconv.Atoi(cfg.GrpcPort)

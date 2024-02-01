@@ -2,6 +2,7 @@ syntax = "proto3";
 package api;
 import "google/protobuf/wrappers.proto";
 option go_package = "/proto/api";
+import "google/protobuf/timestamp.proto";
 
 service AuthApi {
   rpc Register (RegisterRequest) returns (RegisterResponse);
@@ -18,12 +19,12 @@ service TaskApi {
 }
 
 message User {
-  optional int64 id = 1;
+   string id = 1;
   string email = 2;
 }
 
 message Status {
-  optional int64 id = 3;
+   int64 id = 3;
   string title = 1;
   string description = 2;
 }
@@ -47,26 +48,38 @@ message LoginResponse {
 }
 
 message Task {
-  optional int64 id = 7;
+   int64 id = 7;
   string title = 1;
   string description = 2;
-  string due = 3;
+  google.protobuf.Timestamp due = 3;
   Status status = 4;
-  int64 userId = 5;
-  optional int64 statusId = 6;
+  string creatorId = 5;
+  int64 statusId = 6;
+  bool completed = 8;
 }
 
 
 message CreateTaskRequest {
-  Task task = 1;
+   int64 id = 7;
+  string title = 1;
+  string description = 2;
+  google.protobuf.Timestamp due = 3;
+  string creatorId= 5;
+  int64 statusId = 6;
 }
 
 message CreateTaskResponse {
-  Task task = 1;
+  int64 id = 7;
+  string title = 1;
+  string description = 2;
+  google.protobuf.Timestamp due = 3;
+  Status status = 4;
+  string creatorId = 5;
+  int64 statusId = 6;
 }
 
 message DeleteTaskRequest {
-  string taskId = 1;
+  int64 taskId = 1;
 }
 
 message DeleteTaskResponse {
@@ -76,21 +89,29 @@ message DeleteTaskResponse {
 message UpdateTaskRequest {
   google.protobuf.StringValue title = 1;
   google.protobuf.StringValue description = 2;
-  google.protobuf.StringValue due = 3;
-  google.protobuf.Int64Value userId = 5;
+  google.protobuf.Timestamp due = 3;
   google.protobuf.Int64Value statusId = 6;
 }
 
 message UpdateTaskResponse {
-  Task task = 1;
+   int64 id = 7;
+  string title = 1;
+  string description = 2;
+  google.protobuf.Timestamp due = 3;
+  Status status = 4;
+  string creatorId = 5;
+   int64 statusId = 6;
 }
 
 message CreateStatusRequest{
-  Status status = 1;
+  string title = 1;
+  string description = 2;
 }
 
 message CreateStatusResponse{
-  Status status = 1;
+  int64 id = 3;
+  string title = 1;
+  string description = 2;
 }
 
 message DeleteStatusRequest{

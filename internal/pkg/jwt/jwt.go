@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"os"
 	"sso_3.0/internal/domain/user"
@@ -25,17 +26,21 @@ func NewToken(user *user.Model) (string, error) {
 
 	return tokenString, nil
 }
-func CheckToken(tokenStr string) error {
+func CheckToken(tokenStr string) (string, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		return os.Getenv("TOKEN_SECRET"), nil
+		fmt.Println(os.Getenv("TOKEN_SECRET"))
+		return []byte(os.Getenv("TOKEN_SECRET")), nil
 	})
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	var uid = claims["uid"]
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if !token.Valid {
-		return appErrors.InvalidToken
+	if !token.Valid || !ok {
+		return "", appErrors.InvalidToken
 	}
 
-	return nil
+	return uid.(string), nil
 }

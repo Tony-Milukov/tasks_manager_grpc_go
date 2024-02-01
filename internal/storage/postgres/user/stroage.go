@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"log/slog"
 	"sso_3.0/internal/domain/user"
@@ -29,8 +30,8 @@ func (s *Storage) Register(ctx context.Context, email, hash string) (*user.Model
 	op := "storage.auth.Register"
 	log := s.log.With("op", op)
 
-	var userId int64
-	err := s.db.QueryRowContext(ctx, "INSERT INTO users (email,password) VALUES ($1, $2) RETURNING id", email, hash).Scan(&userId)
+	var userId = "user_" + uuid.NewString()
+	err := s.db.QueryRowContext(ctx, "INSERT INTO users (id, email,password) VALUES ($1, $2, $3) RETURNING id", userId, email, hash).Scan(&userId)
 	log.Info("Created new User")
 
 	pqErr, _ := err.(*pq.Error)
@@ -54,16 +55,39 @@ func (s *Storage) GetUserByEmail(ctx context.Context, email string) (*user.Model
 	op := "storage.auth.Register"
 	log := s.log.With("op", op)
 
-	var userId int64
+	var userId string
 	var hash string
-	err := s.db.QueryRowContext(ctx, "SELECT id,password FROM users WHERE email=$1", email).Scan(&userId, &hash)
+	err := s.db.QueryRowContext(ctx, "SELECT id, password FROM users WHERE email=$1", email).Scan(&userId, &hash)
 
 	if err != nil {
 		if errors.Is(sql.ErrNoRows, err) {
 			return nil, appErrors.ErrUserNotExists
 		}
 
-		log.Error("Error on getting auth", "errors", err)
+		log.Error("Error on getting user", "errors", err)
+		return nil, err
+	}
+
+	return &user.Model{
+		Id:    userId,
+		Email: email,
+		Hash:  hash,
+	}, nil
+}
+
+func (s *Storage) GetUserById(ctx context.Context, userId string) (*user.Model, error) {
+	op := "storage.auth.Register"
+	log := s.log.With("op", op)
+
+	var hash, email string
+	err := s.db.QueryRowContext(ctx, "SELECT password, email FROM users WHERE id=$1", userId).Scan(&hash, &email)
+
+	if err != nil {
+		if errors.Is(sql.ErrNoRows, err) {
+			return nil, appErrors.ErrUserNotExists
+		}
+
+		log.Error("Error on getting user", "errors", err)
 		return nil, err
 	}
 
