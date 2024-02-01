@@ -7,8 +7,8 @@ import (
 	"net"
 	userServer "sso_3.0/internal/api/grpc/user"
 	configParser "sso_3.0/internal/config"
+	authService "sso_3.0/internal/services/auth"
 	"sso_3.0/internal/services/tasks"
-	userService "sso_3.0/internal/services/user"
 	"strconv"
 )
 
@@ -18,7 +18,7 @@ type App struct {
 	log        *slog.Logger
 }
 
-func New(logger *slog.Logger, cfg *configParser.Config, userService *userService.Service, taskService *tasks.Service) (*App, error) {
+func New(logger *slog.Logger, cfg *configParser.Config, userService *authService.Service, taskService *tasks.Service) (*App, error) {
 	const op = "app.grpc.New"
 	log := logger.With("op", op)
 	grpcServer := grpc.NewServer()

@@ -8,24 +8,24 @@ import (
 	"google.golang.org/grpc/status"
 	"log/slog"
 	appErrors "sso_3.0/internal/errors"
-	"sso_3.0/internal/services/user"
+	authService "sso_3.0/internal/services/auth"
 	api "sso_3.0/proto/gen"
 )
 
 type serverApi struct {
-	userService *userService.Service
-	api.UnimplementedUserApiServer
+	authService *authService.Service
+	api.UnimplementedAuthApiServer
 	log *slog.Logger
 }
 
-func RegisterServer(grpcServer *grpc.Server, userService *userService.Service, log *slog.Logger) {
-	api.RegisterUserApiServer(grpcServer, &serverApi{userService: userService, log: log})
+func RegisterServer(grpcServer *grpc.Server, authService *authService.Service, log *slog.Logger) {
+	api.RegisterAuthApiServer(grpcServer, &serverApi{authService: authService, log: log})
 }
 
 func (s *serverApi) Register(ctx context.Context, req *api.RegisterRequest) (*api.RegisterResponse, error) {
 	email := req.GetEmail()
 	pwd := req.GetPassword()
-	token, err := s.userService.Register(ctx, email, pwd)
+	token, err := s.authService.Register(ctx, email, pwd)
 
 	if err != nil {
 		if errors.Is(appErrors.ErrUserExists, err) {
@@ -39,7 +39,7 @@ func (s *serverApi) Register(ctx context.Context, req *api.RegisterRequest) (*ap
 func (s *serverApi) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	email := req.GetEmail()
 	pwd := req.GetPassword()
-	token, err := s.userService.Login(ctx, email, pwd)
+	token, err := s.authService.Login(ctx, email, pwd)
 
 	if err != nil {
 		if errors.Is(appErrors.ErrInvalidCredentials, err) {

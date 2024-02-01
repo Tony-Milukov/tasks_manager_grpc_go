@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"sso_3.0/internal/app/grpc"
 	configParser "sso_3.0/internal/config"
+	"sso_3.0/internal/services/auth"
 	"sso_3.0/internal/services/tasks"
-	"sso_3.0/internal/services/user"
 	"sso_3.0/internal/storage/postgres"
 )
 
@@ -24,9 +24,9 @@ func New(cfg *configParser.Config, log *slog.Logger) (*App, error) {
 
 	//crate services
 	taskService := tasks.New(log, storage)
-	userService := userService.New(log, storage)
+	authService := authService.New(log, storage)
 
-	grpcServer, err := grpc.New(log, cfg, userService, taskService)
+	grpcServer, err := grpc.New(log, cfg, authService, taskService)
 
 	if err != nil {
 		return nil, err

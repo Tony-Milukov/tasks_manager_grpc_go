@@ -26,7 +26,7 @@ func New(db *sql.DB, logger *slog.Logger) *Storage {
 }
 
 func (s *Storage) Register(ctx context.Context, email, hash string) (*user.Model, error) {
-	op := "storage.user.Register"
+	op := "storage.auth.Register"
 	log := s.log.With("op", op)
 
 	var userId int64
@@ -51,7 +51,7 @@ func (s *Storage) Register(ctx context.Context, email, hash string) (*user.Model
 }
 
 func (s *Storage) GetUserByEmail(ctx context.Context, email string) (*user.Model, error) {
-	op := "storage.user.Register"
+	op := "storage.auth.Register"
 	log := s.log.With("op", op)
 
 	var userId int64
@@ -63,7 +63,7 @@ func (s *Storage) GetUserByEmail(ctx context.Context, email string) (*user.Model
 			return nil, appErrors.ErrUserNotExists
 		}
 
-		log.Error("Error on getting user", "errors", err)
+		log.Error("Error on getting auth", "errors", err)
 		return nil, err
 	}
 

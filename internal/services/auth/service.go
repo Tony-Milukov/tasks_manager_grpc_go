@@ -1,4 +1,4 @@
-package userService
+package authService
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func New(log *slog.Logger, storage *postgres.Storage) *Service {
 }
 
 func (s *Service) Register(ctx context.Context, email, password string) (string, error) {
-	op := "service.user.CreateUser"
+	op := "service.auth.Register"
 	log := s.log.With("op", op)
 
 	hash, err := bcrypt.HashPassword(password)
@@ -40,7 +40,7 @@ func (s *Service) Register(ctx context.Context, email, password string) (string,
 }
 
 func (s *Service) Login(ctx context.Context, email, password string) (string, error) {
-	op := "service.user.CreateUser"
+	op := "service.auth.Login"
 	log := s.log.With("op", op)
 
 	user, err := s.userStorage.GetUserByEmail(ctx, email)

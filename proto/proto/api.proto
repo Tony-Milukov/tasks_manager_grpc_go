@@ -2,7 +2,8 @@ syntax = "proto3";
 package api;
 import "google/protobuf/wrappers.proto";
 option go_package = "/proto/api";
-service UserApi {
+
+service AuthApi {
   rpc Register (RegisterRequest) returns (RegisterResponse);
   rpc Login (LoginRequest) returns (LoginResponse);
 }
