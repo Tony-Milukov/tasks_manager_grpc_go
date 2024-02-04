@@ -17,6 +17,7 @@ ENV TOKEN_SECRET="topSecretToke__..!!jsfdjq0324234234kk!!"
 ENV ENV=local
 ENV GRPC_PORT=9800
 
+
 COPY --from=builder /build/tasks .
 COPY --from=builder /build/migrations ./migrations
 

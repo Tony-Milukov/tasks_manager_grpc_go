@@ -21,4 +21,11 @@ CREATE TABLE IF NOT EXISTS tasks (
         FOREIGN KEY(creatorId) REFERENCES users(id)
 );
 
-
+CREATE TABLE IF NOT EXISTS task_assignees (
+        id SERIAL PRIMARY KEY,
+        role VARCHAR(255) NOT NULL,
+        userId TEXT,
+        taskId int,
+        FOREIGN KEY(userId) REFERENCES users(id),
+        FOREIGN KEY(taskId) REFERENCES tasks(id)
+);

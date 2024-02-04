@@ -34,7 +34,6 @@ func (s *serverApi) CreateTask(ctx context.Context, req *api.CreateTaskRequest) 
 	user := s.authService.GetUserFromCTX(ctx)
 
 	task, err := s.taskService.CreateTask(ctx, title, description, user.Id, int(statusId), due)
-	fmt.Println(task)
 	if err != nil {
 		if errors.Is(appErrors.ErrStatusUndefined, err) {
 			return nil, status.Errorf(codes.NotFound, err.Error())
@@ -54,16 +53,16 @@ func (s *serverApi) CreateTask(ctx context.Context, req *api.CreateTaskRequest) 
 		Id:          int64(task.Id),
 		CreatorId:   task.CreatorId,
 		Due:         timestamppb.New(task.Due),
-		StatusId:    status.Id,
 		Status:      status,
 	}, err
 }
 func (s *serverApi) DeleteTask(ctx context.Context, req *api.DeleteTaskRequest) (*api.DeleteTaskResponse, error) {
 	taskId := req.GetTaskId()
+	currentUser := s.authService.GetUserFromCTX(ctx)
+	err := s.taskService.DeleteTask(ctx, int(taskId), currentUser)
 
-	err := s.taskService.DeleteTask(ctx, int(taskId))
 	if err != nil {
-		if errors.Is(appErrors.NothingToDelete, err) {
+		if errors.Is(appErrors.NothingToDelete, err) || errors.Is(appErrors.ErrNoPermission, err) {
 			return nil, status.Errorf(codes.NotFound, err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
@@ -72,12 +71,56 @@ func (s *serverApi) DeleteTask(ctx context.Context, req *api.DeleteTaskRequest) 
 	return &api.DeleteTaskResponse{Status: "Success"}, nil
 }
 func (s *serverApi) UpdateTask(ctx context.Context, req *api.UpdateTaskRequest) (*api.UpdateTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateTask not implemented")
+	title := req.GetTitle()
+	description := req.GetDescription()
+	statusId := req.GetStatusId()
+	due := req.GetDue()
+	completed := req.GetCompleted()
+	id := req.GetTaskId()
+	var statusRes *api.Status
+
+	//get user from ctx -> from JWT
+	user := s.authService.GetUserFromCTX(ctx)
+
+	//update task
+	task, err := s.taskService.UpdateTask(ctx, title, description, due.AsTime(), int(statusId), int(id), completed, user)
+
+	// handle errors
+	if err != nil {
+		if errors.Is(appErrors.ErrStatusUndefined, err) || errors.Is(appErrors.ErrTaskNotExists, err) {
+			return nil, status.Errorf(codes.NotFound, err.Error())
+		}
+
+		if errors.Is(appErrors.ErrNoPermission, err) {
+			return nil, status.Errorf(codes.PermissionDenied, err.Error())
+		}
+		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
+
+	}
+
+	//if status is defined
+	if task.Status != nil {
+		statusRes = &api.Status{
+			Title:       task.Status.Title,
+			Description: task.Status.Description,
+			Id:          int64(task.Status.Id),
+		}
+	}
+
+	fmt.Println(timestamppb.New(task.Due))
+	return &api.UpdateTaskResponse{
+		Id:          int64(task.Id),
+		Title:       title,
+		Description: description,
+		CreatorId:   task.CreatorId,
+		Due:         timestamppb.New(task.Due),
+		Completed:   task.Completed.Value,
+		Status:      statusRes,
+	}, nil
 }
 func (s *serverApi) CreateStatus(ctx context.Context, req *api.CreateStatusRequest) (*api.CreateStatusResponse, error) {
 	title := req.GetTitle()
 	description := req.GetDescription()
-
 	statusRes, err := s.taskService.CreateStatus(ctx, title, description)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
@@ -90,6 +133,7 @@ func (s *serverApi) DeleteStatus(ctx context.Context, req *api.DeleteStatusReque
 
 	err := s.taskService.DeleteStatus(ctx, int(statusId))
 	if err != nil {
+		fmt.Println(err)
 		if errors.Is(appErrors.NothingToDelete, err) {
 			return nil, status.Errorf(codes.NotFound, err.Error())
 		}
@@ -98,6 +142,29 @@ func (s *serverApi) DeleteStatus(ctx context.Context, req *api.DeleteStatusReque
 
 	return &api.DeleteStatusResponse{Status: "Success"}, nil
 }
+
 func (s *serverApi) UpdateStatus(ctx context.Context, req *api.UpdateStatusRequest) (*api.UpdateStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateStatus not implemented")
+	statusId := req.GetStatusId()
+	description := req.GetDescription()
+	title := req.GetTitle()
+
+	if title == "" && description == "" {
+		return nil, status.Errorf(codes.InvalidArgument, appErrors.NoArguments.Error())
+	}
+
+	statusRes, err := s.taskService.UpdateStatus(ctx, title, description, int(statusId))
+
+	if err != nil {
+		if errors.Is(appErrors.ErrStatusUndefined, err) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
+	}
+
+	return &api.UpdateStatusResponse{
+		Id:          int64(statusRes.Id),
+		Title:       statusRes.Title,
+		Description: statusRes.Description,
+	}, nil
+
 }

@@ -16,11 +16,26 @@ service TaskApi {
   rpc CreateStatus (CreateStatusRequest) returns (CreateStatusResponse);
   rpc DeleteStatus (DeleteStatusRequest) returns (DeleteStatusResponse);
   rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
+  rpc GetAssignedTasksByUID (GetAssignedTasksByUIDRequest) returns (GetAssignedTasksByUIDResponse);
+  rpc GetCreatedTasksByUID (GetCreatedTasksByUIDRequest) returns (GetCreatedTasksByUIDResponse);
+  rpc AssignTask (AssignTaskRequest) returns (AssignTaskResponse);
 }
 
 message User {
    string id = 1;
   string email = 2;
+}
+
+message Task {
+  int64 id = 7;
+  string title = 1;
+  string description = 2;
+  google.protobuf.Timestamp due = 3;
+  Status status = 4;
+  string creatorId = 5;
+  bool completed = 8;
+  string majorUserId = 9;
+  string minorUserId = 10;
 }
 
 message Status {
@@ -47,18 +62,6 @@ message LoginResponse {
     string token = 1;
 }
 
-message Task {
-   int64 id = 7;
-  string title = 1;
-  string description = 2;
-  google.protobuf.Timestamp due = 3;
-  Status status = 4;
-  string creatorId = 5;
-  int64 statusId = 6;
-  bool completed = 8;
-}
-
-
 message CreateTaskRequest {
    int64 id = 7;
   string title = 1;
@@ -71,11 +74,11 @@ message CreateTaskRequest {
 message CreateTaskResponse {
   int64 id = 7;
   string title = 1;
+  bool completed = 8;
   string description = 2;
   google.protobuf.Timestamp due = 3;
   Status status = 4;
   string creatorId = 5;
-  int64 statusId = 6;
 }
 
 message DeleteTaskRequest {
@@ -87,20 +90,22 @@ message DeleteTaskResponse {
 }
 
 message UpdateTaskRequest {
-  google.protobuf.StringValue title = 1;
-  google.protobuf.StringValue description = 2;
+  string title = 1;
+  string description = 2;
+  google.protobuf.BoolValue completed = 7;
   google.protobuf.Timestamp due = 3;
-  google.protobuf.Int64Value statusId = 6;
+  int64 statusId = 6;
+  int64 taskId = 8;
 }
 
 message UpdateTaskResponse {
-   int64 id = 7;
+  int64 id = 7;
   string title = 1;
   string description = 2;
   google.protobuf.Timestamp due = 3;
   Status status = 4;
   string creatorId = 5;
-   int64 statusId = 6;
+  bool completed = 8;
 }
 
 message CreateStatusRequest{
@@ -122,10 +127,49 @@ message DeleteStatusResponse{
  string status = 1;
 }
 
+message AssignTaskRequest {
+  int64 taskId = 1;
+  string majorUserId = 2;
+  string minorUserId = 3;
+}
+
+message AssignTaskResponse {
+  Task task = 1;
+}
+
 message UpdateStatusRequest{
   int64 statusId = 1;
+  string title = 2;
+  string description = 3;
 }
 
 message UpdateStatusResponse{
- string status = 1;
+  int64 id = 3;
+  string title = 1;
+  string description = 2;
+}
+
+
+
+message GetCreatedTasksByUIDRequest {
+  string userId = 1;
+}
+message GetCreatedTasksByUIDResponse{
+  repeated Task tasks = 1;
+}
+
+message GetAssignedTasksByUIDResponse{
+  repeated Task tasks = 1;
+}
+
+message GetAssignedTasksByUIDRequest {
+  string userId = 1;
+}
+
+message GetAllTasksRequest {
+
+}
+
+message GetAllTasksResponse {
+  repeated Task tasks = 1;
 }
