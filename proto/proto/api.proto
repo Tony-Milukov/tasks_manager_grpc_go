@@ -34,8 +34,14 @@ message Task {
   Status status = 4;
   string creatorId = 5;
   bool completed = 8;
-  string majorUserId = 9;
-  string minorUserId = 10;
+  repeated TaskAssignee assignees = 9;
+}
+
+message TaskAssignee {
+      User   user = 1;
+      string role = 2;
+      int64     id = 3;
+      int64     taskId = 4;
 }
 
 message Status {
@@ -79,6 +85,7 @@ message CreateTaskResponse {
   google.protobuf.Timestamp due = 3;
   Status status = 4;
   string creatorId = 5;
+  repeated TaskAssignee assignees = 9;
 }
 
 message DeleteTaskRequest {
@@ -106,6 +113,8 @@ message UpdateTaskResponse {
   Status status = 4;
   string creatorId = 5;
   bool completed = 8;
+  repeated TaskAssignee assignees = 9;
+
 }
 
 message CreateStatusRequest{
@@ -129,8 +138,8 @@ message DeleteStatusResponse{
 
 message AssignTaskRequest {
   int64 taskId = 1;
-  string majorUserId = 2;
-  string minorUserId = 3;
+  string userId = 2;
+  string description = 3;
 }
 
 message AssignTaskResponse {
@@ -148,8 +157,6 @@ message UpdateStatusResponse{
   string title = 1;
   string description = 2;
 }
-
-
 
 message GetCreatedTasksByUIDRequest {
   string userId = 1;

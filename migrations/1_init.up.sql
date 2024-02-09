@@ -27,5 +27,6 @@ CREATE TABLE IF NOT EXISTS task_assignees (
         userId TEXT,
         taskId int,
         FOREIGN KEY(userId) REFERENCES users(id),
-        FOREIGN KEY(taskId) REFERENCES tasks(id)
+        FOREIGN KEY(taskId) REFERENCES tasks(id),
+        UNIQUE (userId, taskId)
 );

@@ -7,15 +7,14 @@ import (
 )
 
 type Task struct {
-	Id            int
-	Title         string
-	Description   string
-	Due           time.Time
-	Completed     *wrapperspb.BoolValue
-	CreatorId     string
-	Status        *Status
-	MajorAssignee string
-	MinorAssignee string
+	Id          int
+	Title       string
+	Description string
+	Due         time.Time
+	Completed   *wrapperspb.BoolValue
+	CreatorId   string
+	Status      *Status
+	Assignees   []*Assignee
 }
 
 type Status struct {
@@ -25,12 +24,8 @@ type Status struct {
 }
 
 type Assignee struct {
-	User *user.Model
-	Role string
-	Id   int
-}
-
-type Assignees struct {
-	Major *Assignee
-	Minor *Assignee
+	User   *user.Model
+	Role   string
+	Id     int
+	TaskId int
 }

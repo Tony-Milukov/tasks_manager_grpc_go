@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"log/slog"
 	appErrors "sso_3.0/internal/errors"
 	authService "sso_3.0/internal/services/auth"
@@ -32,8 +31,8 @@ func (s *serverApi) CreateTask(ctx context.Context, req *api.CreateTaskRequest) 
 	statusId := req.GetStatusId()
 	due := req.GetDue().AsTime()
 	user := s.authService.GetUserFromCTX(ctx)
-
 	task, err := s.taskService.CreateTask(ctx, title, description, user.Id, int(statusId), due)
+
 	if err != nil {
 		if errors.Is(appErrors.ErrStatusUndefined, err) {
 			return nil, status.Errorf(codes.NotFound, err.Error())
@@ -41,20 +40,18 @@ func (s *serverApi) CreateTask(ctx context.Context, req *api.CreateTaskRequest) 
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
 	}
 
-	status := &api.Status{
-		Title:       task.Status.Title,
-		Description: task.Status.Description,
-		Id:          int64(task.Status.Id),
-	}
+	taskProto := s.taskService.GetProtoTask(task)
 
 	return &api.CreateTaskResponse{
-		Description: task.Description,
-		Title:       task.Title,
-		Id:          int64(task.Id),
-		CreatorId:   task.CreatorId,
-		Due:         timestamppb.New(task.Due),
-		Status:      status,
-	}, err
+		Id:          taskProto.Id,
+		Title:       taskProto.Title,
+		Description: taskProto.Description,
+		CreatorId:   taskProto.CreatorId,
+		Due:         taskProto.Due,
+		Completed:   taskProto.Completed,
+		Status:      taskProto.Status,
+		Assignees:   taskProto.Assignees,
+	}, nil
 }
 func (s *serverApi) DeleteTask(ctx context.Context, req *api.DeleteTaskRequest) (*api.DeleteTaskResponse, error) {
 	taskId := req.GetTaskId()
@@ -77,7 +74,6 @@ func (s *serverApi) UpdateTask(ctx context.Context, req *api.UpdateTaskRequest) 
 	due := req.GetDue()
 	completed := req.GetCompleted()
 	id := req.GetTaskId()
-	var statusRes *api.Status
 
 	//get user from ctx -> from JWT
 	user := s.authService.GetUserFromCTX(ctx)
@@ -87,6 +83,7 @@ func (s *serverApi) UpdateTask(ctx context.Context, req *api.UpdateTaskRequest) 
 
 	// handle errors
 	if err != nil {
+		fmt.Println(err)
 		if errors.Is(appErrors.ErrStatusUndefined, err) || errors.Is(appErrors.ErrTaskNotExists, err) {
 			return nil, status.Errorf(codes.NotFound, err.Error())
 		}
@@ -95,27 +92,17 @@ func (s *serverApi) UpdateTask(ctx context.Context, req *api.UpdateTaskRequest) 
 			return nil, status.Errorf(codes.PermissionDenied, err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
-
 	}
 
-	//if status is defined
-	if task.Status != nil {
-		statusRes = &api.Status{
-			Title:       task.Status.Title,
-			Description: task.Status.Description,
-			Id:          int64(task.Status.Id),
-		}
-	}
-
-	fmt.Println(timestamppb.New(task.Due))
+	taskProto := s.taskService.GetProtoTask(task)
 	return &api.UpdateTaskResponse{
-		Id:          int64(task.Id),
-		Title:       title,
-		Description: description,
-		CreatorId:   task.CreatorId,
-		Due:         timestamppb.New(task.Due),
-		Completed:   task.Completed.Value,
-		Status:      statusRes,
+		Id:          taskProto.Id,
+		Title:       taskProto.Title,
+		Description: taskProto.Description,
+		CreatorId:   taskProto.CreatorId,
+		Due:         taskProto.Due,
+		Completed:   taskProto.Completed,
+		Status:      taskProto.Status,
 	}, nil
 }
 func (s *serverApi) CreateStatus(ctx context.Context, req *api.CreateStatusRequest) (*api.CreateStatusResponse, error) {
@@ -167,4 +154,72 @@ func (s *serverApi) UpdateStatus(ctx context.Context, req *api.UpdateStatusReque
 		Description: statusRes.Description,
 	}, nil
 
+}
+
+func (s *serverApi) GetCreatedTasksByUID(ctx context.Context, req *api.GetCreatedTasksByUIDRequest) (*api.GetCreatedTasksByUIDResponse, error) {
+	userId := req.GetUserId()
+	var tasks []*api.Task
+	if userId == "" {
+		user := s.authService.GetUserFromCTX(ctx)
+		userId = user.Id
+	}
+
+	tasksRes, err := s.taskService.GetCreatedTasksByUID(ctx, userId)
+
+	if err != nil {
+		fmt.Println(err)
+		if errors.Is(appErrors.ErrStatusUndefined, err) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
+	}
+
+	tasks = s.taskService.GetProtoTasks(tasksRes)
+
+	return &api.GetCreatedTasksByUIDResponse{
+		Tasks: tasks,
+	}, nil
+}
+
+func (s *serverApi) AssignTask(ctx context.Context, req *api.AssignTaskRequest) (*api.AssignTaskResponse, error) {
+	description := req.GetDescription()
+	userId := req.GetUserId()
+	taskId := req.GetTaskId()
+
+	user := s.authService.GetUserFromCTX(ctx)
+
+	task, err := s.taskService.GetTaskById(ctx, int(taskId))
+
+	if err != nil {
+		if errors.Is(appErrors.ErrTaskNotExists, err) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
+	}
+	if task.CreatorId != user.Id {
+		return nil, status.Errorf(codes.PermissionDenied, appErrors.ErrNoPermission.Error())
+	}
+
+	if userId == "" {
+		user := s.authService.GetUserFromCTX(ctx)
+		userId = user.Id
+	}
+
+	task, err = s.taskService.AssignTask(ctx, userId, description, int(taskId))
+
+	if err != nil {
+		if errors.Is(appErrors.ErrStatusUndefined, err) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		if errors.Is(appErrors.TaskAlreadyAssigned, err) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
+		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
+	}
+
+	protoTask := s.taskService.GetProtoTask(task)
+	fmt.Println(protoTask)
+	return &api.AssignTaskResponse{
+		Task: protoTask,
+	}, nil
 }

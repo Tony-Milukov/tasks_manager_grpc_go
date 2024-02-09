@@ -13,6 +13,7 @@ var (
 	NothingToDelete       = errors.New("nothing to delete")
 	ErrStatusUndefined    = errors.New("status with that id was not defined")
 	NoArguments           = errors.New("there are not enough arguments to continue")
+	TaskAlreadyAssigned   = errors.New("task was already assigned to the user before")
 	ErrNoPermission       = errors.New("you have no permission to do that")
 	Internal              = errors.New("internal Server Error")
 )
