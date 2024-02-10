@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"log/slog"
+	"sso_3.0/internal/domain/models"
 	appErrors "sso_3.0/internal/errors"
 	authService "sso_3.0/internal/services/auth"
 	"sso_3.0/internal/services/tasks"
@@ -59,8 +60,12 @@ func (s *serverApi) DeleteTask(ctx context.Context, req *api.DeleteTaskRequest) 
 	err := s.taskService.DeleteTask(ctx, int(taskId), currentUser)
 
 	if err != nil {
-		if errors.Is(appErrors.NothingToDelete, err) || errors.Is(appErrors.ErrNoPermission, err) {
+		if errors.Is(appErrors.NothingToDelete, err) {
 			return nil, status.Errorf(codes.NotFound, err.Error())
+		}
+
+		if errors.Is(appErrors.ErrNoPermission, err) {
+			return nil, status.Errorf(codes.PermissionDenied, err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
 	}
@@ -145,6 +150,7 @@ func (s *serverApi) UpdateStatus(ctx context.Context, req *api.UpdateStatusReque
 		if errors.Is(appErrors.ErrStatusUndefined, err) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
+
 		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
 	}
 
@@ -156,15 +162,20 @@ func (s *serverApi) UpdateStatus(ctx context.Context, req *api.UpdateStatusReque
 
 }
 
-func (s *serverApi) GetCreatedTasksByUID(ctx context.Context, req *api.GetCreatedTasksByUIDRequest) (*api.GetCreatedTasksByUIDResponse, error) {
-	userId := req.GetUserId()
+func (s *serverApi) GetTasksByFilter(ctx context.Context, req *api.GetTasksByFilterRequest) (*api.GetTasksByFilterResponse, error) {
+	user := s.authService.GetUserFromCTX(ctx)
 	var tasks []*api.Task
-	if userId == "" {
-		user := s.authService.GetUserFromCTX(ctx)
-		userId = user.Id
-	}
 
-	tasksRes, err := s.taskService.GetCreatedTasksByUID(ctx, userId)
+	filters := &models.TaskFilters{
+		Completed:    req.GetCompleted(),
+		UnCompleted:  req.GetUnCompleted(),
+		CreatedByMe:  req.GetCreatedByMe(),
+		AssignedToMe: req.GetAssignedToMe(),
+		AssigneeId:   req.GetAssigneeId(),
+		StatusId:     int(req.GetStatusId()),
+	}
+	fmt.Println(filters)
+	tasksRes, err := s.taskService.GetCreatedTasksByFilter(ctx, user.Id, filters)
 
 	if err != nil {
 		fmt.Println(err)
@@ -176,7 +187,7 @@ func (s *serverApi) GetCreatedTasksByUID(ctx context.Context, req *api.GetCreate
 
 	tasks = s.taskService.GetProtoTasks(tasksRes)
 
-	return &api.GetCreatedTasksByUIDResponse{
+	return &api.GetTasksByFilterResponse{
 		Tasks: tasks,
 	}, nil
 }
@@ -186,26 +197,12 @@ func (s *serverApi) AssignTask(ctx context.Context, req *api.AssignTaskRequest) 
 	userId := req.GetUserId()
 	taskId := req.GetTaskId()
 
-	user := s.authService.GetUserFromCTX(ctx)
-
-	task, err := s.taskService.GetTaskById(ctx, int(taskId))
-
-	if err != nil {
-		if errors.Is(appErrors.ErrTaskNotExists, err) {
-			return nil, status.Error(codes.NotFound, err.Error())
-		}
-		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
-	}
-	if task.CreatorId != user.Id {
-		return nil, status.Errorf(codes.PermissionDenied, appErrors.ErrNoPermission.Error())
-	}
-
 	if userId == "" {
 		user := s.authService.GetUserFromCTX(ctx)
 		userId = user.Id
 	}
 
-	task, err = s.taskService.AssignTask(ctx, userId, description, int(taskId))
+	task, err := s.taskService.AssignTask(ctx, userId, description, int(taskId))
 
 	if err != nil {
 		if errors.Is(appErrors.ErrStatusUndefined, err) {
@@ -214,6 +211,10 @@ func (s *serverApi) AssignTask(ctx context.Context, req *api.AssignTaskRequest) 
 		if errors.Is(appErrors.TaskAlreadyAssigned, err) {
 			return nil, status.Error(codes.AlreadyExists, err.Error())
 		}
+		if errors.Is(appErrors.ErrNoPermission, err) {
+			return nil, status.Error(codes.PermissionDenied, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
 	}
 

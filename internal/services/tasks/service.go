@@ -2,8 +2,6 @@ package tasks
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	"log/slog"
@@ -35,18 +33,9 @@ func (s *Service) CreateTask(ctx context.Context, title, description, creatorId 
 	return task, nil
 }
 func (s *Service) DeleteTask(ctx context.Context, id int, currentUser *user.Model) error {
-	task, err := s.storage.TaskStorage.GetTaskById(ctx, id)
-
+	err := s.verifyUserIsTaskCreator(ctx, id, currentUser.Id)
 	if err != nil {
-		fmt.Println(err)
-		if errors.Is(appErrors.ErrTaskNotExists, err) {
-			return appErrors.NothingToDelete
-		}
 		return err
-	}
-
-	if task.CreatorId != currentUser.Id {
-		return appErrors.ErrNoPermission
 	}
 
 	err = s.storage.TaskStorage.DeleteTask(ctx, id)
@@ -59,18 +48,10 @@ func (s *Service) DeleteTask(ctx context.Context, id int, currentUser *user.Mode
 }
 func (s *Service) UpdateTask(ctx context.Context, title, description string, due time.Time, statusId, id int, completed *wrapperspb.BoolValue, user *user.Model) (*models.Task, error) {
 	var status *models.Status = nil
-	var err error
 
-	// check if task exists
-	task, err := s.GetTaskById(ctx, id)
-
+	err := s.verifyUserIsTaskCreator(ctx, id, user.Id)
 	if err != nil {
 		return nil, err
-	}
-
-	//check if Creator is owner of the task
-	if user.Id != task.CreatorId {
-		return nil, appErrors.ErrNoPermission
 	}
 
 	// check if status is to update
@@ -82,7 +63,7 @@ func (s *Service) UpdateTask(ctx context.Context, title, description string, due
 	}
 
 	// update task
-	task, err = s.storage.TaskStorage.UpdateTask(ctx, title, description, due, status, completed, id)
+	task, err := s.storage.TaskStorage.UpdateTask(ctx, title, description, due, status, completed, id)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +111,8 @@ func (s *Service) GetTaskById(ctx context.Context, taskId int) (*models.Task, er
 	return task, nil
 }
 
-func (s *Service) GetCreatedTasksByUID(ctx context.Context, userId string) ([]*models.Task, error) {
-	tasks, err := s.storage.TaskStorage.GetCreatedTasksByUID(ctx, userId)
+func (s *Service) GetCreatedTasksByFilter(ctx context.Context, userId string, filters *models.TaskFilters) ([]*models.Task, error) {
+	tasks, err := s.storage.TaskStorage.GetCreatedTasksByFilter(ctx, filters, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +194,11 @@ func (s *Service) GetProtoTasks(tasks []*models.Task) []*api.Task {
 }
 
 func (s *Service) AssignTask(ctx context.Context, userId, role string, taskId int) (*models.Task, error) {
-	fmt.Printf("TASK: %d  USER: %s ROLE %s", taskId, userId, role)
+	err := s.verifyUserIsTaskCreator(ctx, taskId, userId)
+	if err != nil {
+		return nil, err
+	}
+
 	task, err := s.storage.TaskStorage.AssignTask(ctx, userId, role, taskId)
 
 	if err != nil {
@@ -221,4 +206,29 @@ func (s *Service) AssignTask(ctx context.Context, userId, role string, taskId in
 	}
 
 	return task, nil
+}
+
+func (s *Service) UnAssignTask(ctx context.Context, userId, role string, taskId int) (*models.Task, error) {
+	task, err := s.storage.TaskStorage.AssignTask(ctx, userId, role, taskId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return task, nil
+}
+
+func (s *Service) verifyUserIsTaskCreator(ctx context.Context, taskId int, userId string) error {
+	task, err := s.GetTaskById(ctx, taskId)
+
+	if err != nil {
+		return err
+	}
+
+	//check if Creator is owner of the task
+	if userId != task.CreatorId {
+		return appErrors.ErrNoPermission
+	}
+
+	return nil
 }

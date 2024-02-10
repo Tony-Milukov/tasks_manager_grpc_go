@@ -178,7 +178,9 @@ func (s *Storage) GetStatusById(ctx context.Context, id int) (*models.Status, er
 }
 
 // GetTaskById gets task by id
+// TODO: fix the not flund bug
 func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error) {
+	var found bool
 	var assignees []*models.Assignee
 	op := "storage.GetTaskById"
 	log := s.log.With(op)
@@ -200,11 +202,11 @@ func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error)
 	LEFT JOIN users u ON ta.userId = u.id
 	WHERE t.id = $1
 	`, id)
+
 	if err != nil {
 		log.Error("Error: ", err)
 		return nil, err
 	}
-	fmt.Println(rows)
 	if err = rows.Err(); err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -215,6 +217,8 @@ func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error)
 
 	//get every task by
 	for rows.Next() {
+		found = true
+
 		// define all needed vars
 
 		var statusId *sql.NullInt64
@@ -232,7 +236,7 @@ func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error)
 		}
 
 		// get status if it is not null
-		if statusId.Valid {
+		if status != nil && statusId.Valid {
 			status, err = s.GetStatusById(ctx, int(statusId.Int64))
 			if err != nil {
 				return nil, err
@@ -247,6 +251,10 @@ func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error)
 		if assigneeId != nil && assigneeId.Valid {
 			assignees = append(assignees, &models.Assignee{Id: int(assigneeId.Int64), TaskId: id, Role: assigneeRole.String, User: &user.Model{Id: assigneeUserId.String, Email: assigneeEmail.String}})
 		}
+	}
+
+	if !found {
+		return nil, appErrors.ErrTaskNotExists
 	}
 
 	return &models.Task{
@@ -292,98 +300,70 @@ func (s *Storage) UpdateStatus(ctx context.Context, title, description string, s
 	return &models.Status{Id: statusId, Title: title, Description: description}, nil
 }
 
-//TODO: ADD ASSIGNEES
-//func (s *Storage) GetAssignedTasksByUID(ctx context.Context, userId int) ([]*models.Task, error) {
-//	op := "storage.GetAssignedTasksByUID"
-//	log := s.log.With(op)
-//	var tasks []*models.Task
-//
-//	//query the tasks where user is part of assignees
-//	rows, err := s.db.QueryContext(ctx, `
-//    SELECT t.title, t.description, t.creatorId,
-//          t.statusId, t.due, t.completed, ta.userId as assignee_uid,
-//          ta.role
-//	FROM tasks t
-//	JOIN task_assignees ta ON ta.taskId = t.id
-//	WHERE t.id IN (
-//	SELECT taskId
-//	FROM task_assignees
-//	WHERE userId = $1)`, userId)
-//
-//	//close rows on end
-//	defer rows.Close()
-//
-//	if err != nil {
-//		log.Error("Error: ", err)
-//		return nil, err
-//	}
-//
-//	//get every task by
-//	for rows.Next() {
-//		var id int
-//		var title, creatorId, description string
-//		var due time.Time
-//		var completed *sql.NullBool
-//		var completedWrapper *wrapperspb.BoolValue
-//		var status *models.Status
-//		var statusId *sql.NullInt64
-//
-//		// get values from row
-//		err = rows.Scan(&title, &description, &creatorId, &statusId, &due, &completed)
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		// get status if it is not null
-//		if statusId.Valid {
-//			status, err = s.GetStatusById(ctx, int(statusId.Int64))
-//			if err != nil {
-//				return nil, err
-//			}
-//		}
-//
-//		// if completed != null
-//		if completed.Valid {
-//			completedWrapper = wrapperspb.Bool(completed.Bool)
-//		}
-//
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		// generate task model
-//		tasks = append(tasks, &models.Task{
-//			Id:            id,
-//			Title:         title,
-//			Description:   description,
-//			Due:           due,
-//			Completed:     completedWrapper,
-//			Status:        status,
-//			CreatorId:     creatorId,
-//		})
-//
-//	}
-//
-//	return tasks, nil
-//}
-
-// GetCreatedTasksByUID gets tasks by userId
-func (s *Storage) GetCreatedTasksByUID(ctx context.Context, userId string) ([]*models.Task, error) {
+// GetCreatedTasksByFilter gets tasks by given filters
+func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.TaskFilters, userId string) ([]*models.Task, error) {
 	op := "storage.GetCreatedTasksByUID"
 	log := s.log.With(op)
 	var tasks []*models.Task
 	assignees := make(map[int][]*models.Assignee)
+	var values []any
+	var filerQueries []string
+	keyCount := 1
+	mainQuery := `SELECT t.id, t.title, t.description, t.creatorId,
+			   t.statusId, t.due, t.completed, ta.role, 
+			   ta.userId as assigneeId, u.email as assigneeEmail,
+			   ta.id as taskId
 
-	//query the tasks where user is part of assignees
-	rows, err := s.db.QueryContext(ctx, `
-   SELECT t.id, t.title, t.description, t.creatorId,
-          t.statusId, t.due, t.completed, ta.role, ta.userId as assigneeId, u.email as assigneeEmail, ta.id
-	FROM tasks t
-	LEFT JOIN task_assignees ta ON ta.taskId = t.id 
-	LEFT JOIN users u ON ta.userId = u.id
-	WHERE t.creatorId = $1
-	`, userId)
+			FROM tasks t
+			LEFT JOIN task_assignees ta ON ta.taskId = t.id 
+			LEFT JOIN users u ON ta.userId = u.id`
 
+	//generate query
+
+	if filters.CreatedByMe {
+		filerQueries = append(filerQueries, fmt.Sprintf("t.creatorId = $%d", keyCount))
+		keyCount += 1
+		values = append(values, userId)
+	}
+
+	if filters.Completed {
+		filerQueries = append(filerQueries, fmt.Sprintf("t.completed = $%d", keyCount))
+		keyCount += 1
+		values = append(values, true)
+	}
+
+	if filters.UnCompleted {
+		filerQueries = append(filerQueries, fmt.Sprintf("t.completed != $%d", keyCount))
+		keyCount += 1
+		values = append(values, true)
+	}
+
+	if filters.AssigneeId != "" {
+		filerQueries = append(filerQueries, fmt.Sprintf("ta.userId = $%d", keyCount))
+		keyCount += 1
+		values = append(values, filters.AssigneeId)
+	}
+
+	if filters.AssignedToMe {
+		filerQueries = append(filerQueries, fmt.Sprintf("ta.userId = $%d", keyCount))
+		keyCount += 1
+		values = append(values, userId)
+	}
+
+	if filters.StatusId != 0 {
+		filerQueries = append(filerQueries, fmt.Sprintf("t.statusId = $%d", keyCount))
+		keyCount += 1
+		values = append(values, filters.StatusId)
+	}
+
+	if keyCount >= 2 {
+		mainQuery += " WHERE "
+	}
+
+	query := fmt.Sprintf(`%s %s`, mainQuery, strings.Join(filerQueries, " AND "))
+	fmt.Println(query)
+
+	rows, err := s.db.QueryContext(ctx, query, values...)
 	//close rows on end
 	defer rows.Close()
 
@@ -392,8 +372,10 @@ func (s *Storage) GetCreatedTasksByUID(ctx context.Context, userId string) ([]*m
 		return nil, err
 	}
 
+	fmt.Println(rows)
+
 	//get every task by
-	for rows.Next() {
+	for rows != nil && rows.Next() {
 		// define all needed vars
 
 		//task
@@ -419,7 +401,7 @@ func (s *Storage) GetCreatedTasksByUID(ctx context.Context, userId string) ([]*m
 		}
 
 		// get status if it is not null
-		if statusId.Valid {
+		if statusId != nil && statusId.Valid {
 			status, err = s.GetStatusById(ctx, int(statusId.Int64))
 			if err != nil {
 				return nil, err
@@ -457,11 +439,13 @@ func (s *Storage) GetCreatedTasksByUID(ctx context.Context, userId string) ([]*m
 	}
 
 	for _, task := range tasks {
+		fmt.Println(task)
+
 		if assignees[task.Id] != nil {
 			task.Assignees = assignees[task.Id]
 		}
 	}
-
+	fmt.Println(tasks)
 	return tasks, nil
 }
 
@@ -469,7 +453,6 @@ func (s *Storage) AssignTask(ctx context.Context, userId, role string, taskId in
 	op := "storage.AssignTask"
 	log := s.log.With(op)
 	var id int
-	fmt.Printf("TASK: %d  USER: %s ROLE %s", taskId, userId, role)
 	err := s.db.QueryRowContext(ctx, "INSERT INTO task_assignees (taskId, role,userId) VALUES ($1, $2, $3) RETURNING id", taskId, role, userId).Scan(&id)
 	if err != nil {
 		pqErr, ok := err.(*pq.Error)

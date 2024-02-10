@@ -29,3 +29,11 @@ type Assignee struct {
 	Id     int
 	TaskId int
 }
+type TaskFilters struct {
+	AssignedToMe bool
+	CreatedByMe  bool
+	UnCompleted  bool
+	Completed    bool
+	AssigneeId   string
+	StatusId     int
+}

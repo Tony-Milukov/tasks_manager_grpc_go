@@ -16,8 +16,7 @@ service TaskApi {
   rpc CreateStatus (CreateStatusRequest) returns (CreateStatusResponse);
   rpc DeleteStatus (DeleteStatusRequest) returns (DeleteStatusResponse);
   rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
-  rpc GetAssignedTasksByUID (GetAssignedTasksByUIDRequest) returns (GetAssignedTasksByUIDResponse);
-  rpc GetCreatedTasksByUID (GetCreatedTasksByUIDRequest) returns (GetCreatedTasksByUIDResponse);
+  rpc GetTasksByFilter (GetTasksByFilterRequest) returns (GetTasksByFilterResponse);
   rpc AssignTask (AssignTaskRequest) returns (AssignTaskResponse);
 }
 
@@ -158,25 +157,15 @@ message UpdateStatusResponse{
   string description = 2;
 }
 
-message GetCreatedTasksByUIDRequest {
-  string userId = 1;
-}
-message GetCreatedTasksByUIDResponse{
+message GetTasksByFilterResponse{
   repeated Task tasks = 1;
 }
 
-message GetAssignedTasksByUIDResponse{
-  repeated Task tasks = 1;
-}
-
-message GetAssignedTasksByUIDRequest {
-  string userId = 1;
-}
-
-message GetAllTasksRequest {
-
-}
-
-message GetAllTasksResponse {
-  repeated Task tasks = 1;
+message GetTasksByFilterRequest{
+  bool AssignedToMe = 1;
+  bool CreatedByMe = 2;
+  bool UnCompleted = 3;
+  bool Completed = 4;
+  string AssigneeId = 5;
+  int64 StatusId = 6;
 }
