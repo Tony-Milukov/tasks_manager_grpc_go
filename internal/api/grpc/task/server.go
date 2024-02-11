@@ -12,6 +12,8 @@ import (
 	appErrors "sso_3.0/internal/errors"
 	authService "sso_3.0/internal/services/auth"
 	"sso_3.0/internal/services/tasks"
+	protoStatus "sso_3.0/internal/utilities/getProto/status"
+	protoTasks "sso_3.0/internal/utilities/getProto/task"
 	api "sso_3.0/proto/gen"
 )
 
@@ -41,7 +43,7 @@ func (s *serverApi) CreateTask(ctx context.Context, req *api.CreateTaskRequest) 
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
 	}
 
-	taskProto := s.taskService.GetProtoTask(task)
+	taskProto := protoTasks.GetProtoTask(task)
 
 	return &api.CreateTaskResponse{
 		Id:          taskProto.Id,
@@ -99,7 +101,7 @@ func (s *serverApi) UpdateTask(ctx context.Context, req *api.UpdateTaskRequest) 
 		return nil, status.Errorf(codes.Internal, appErrors.Internal.Error())
 	}
 
-	taskProto := s.taskService.GetProtoTask(task)
+	taskProto := protoTasks.GetProtoTask(task)
 	return &api.UpdateTaskResponse{
 		Id:          taskProto.Id,
 		Title:       taskProto.Title,
@@ -185,7 +187,7 @@ func (s *serverApi) GetTasksByFilter(ctx context.Context, req *api.GetTasksByFil
 		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
 	}
 
-	tasks = s.taskService.GetProtoTasks(tasksRes)
+	tasks = protoTasks.GetProtoTasks(tasksRes)
 
 	return &api.GetTasksByFilterResponse{
 		Tasks: tasks,
@@ -196,13 +198,12 @@ func (s *serverApi) AssignTask(ctx context.Context, req *api.AssignTaskRequest) 
 	description := req.GetDescription()
 	userId := req.GetUserId()
 	taskId := req.GetTaskId()
-
+	currentUser := s.authService.GetUserFromCTX(ctx)
 	if userId == "" {
-		user := s.authService.GetUserFromCTX(ctx)
-		userId = user.Id
+		userId = currentUser.Id
 	}
 
-	task, err := s.taskService.AssignTask(ctx, userId, description, int(taskId))
+	task, err := s.taskService.AssignTask(ctx, userId, description, int(taskId), currentUser)
 
 	if err != nil {
 		if errors.Is(appErrors.ErrStatusUndefined, err) {
@@ -218,9 +219,48 @@ func (s *serverApi) AssignTask(ctx context.Context, req *api.AssignTaskRequest) 
 		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
 	}
 
-	protoTask := s.taskService.GetProtoTask(task)
-	fmt.Println(protoTask)
+	protoTask := protoTasks.GetProtoTask(task)
 	return &api.AssignTaskResponse{
 		Task: protoTask,
+	}, nil
+}
+
+func (s *serverApi) UnAssignTask(ctx context.Context, req *api.UnAssignTaskRequest) (*api.UnAssignTaskResponse, error) {
+	userId := req.GetUserId()
+	taskId := req.GetTaskId()
+	currentUser := s.authService.GetUserFromCTX(ctx)
+
+	task, err := s.taskService.UnAssignTask(ctx, userId, int(taskId), currentUser)
+
+	if err != nil {
+		if errors.Is(appErrors.TaskNotAssigned, err) || errors.Is(appErrors.ErrTaskNotExists, err) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
+		if errors.Is(appErrors.ErrNoPermission, err) {
+			return nil, status.Error(codes.PermissionDenied, err.Error())
+		}
+
+		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
+	}
+
+	protoTask := protoTasks.GetProtoTask(task)
+
+	return &api.UnAssignTaskResponse{
+		Task: protoTask,
+	}, nil
+}
+
+func (s *serverApi) GetAllStatuses(ctx context.Context, req *api.GetAllStatusesRequest) (*api.GetAllStatusesResponse, error) {
+	statuses, err := s.taskService.GetAllStatuses(ctx)
+
+	if err != nil {
+		return nil, status.Error(codes.Internal, appErrors.Internal.Error())
+	}
+
+	protoStatuses := protoStatus.GetStatuses(statuses)
+
+	return &api.GetAllStatusesResponse{
+		Statuses: protoStatuses,
 	}, nil
 }

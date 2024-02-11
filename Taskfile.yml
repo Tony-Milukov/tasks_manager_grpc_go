@@ -4,6 +4,6 @@
     generate:
       aliases:
         - gen
-      desc: Generates Go proto files
+      desc: Generates Go getProto files
       cmds:
         - protoc -I proto/proto  --go-grpc_out=proto/gen proto/proto/api.proto  --go_out=proto/gen proto/proto/api.proto --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package api;
 import "google/protobuf/wrappers.proto";
-option go_package = "/proto/api";
+option go_package = "/getProto/api";
 import "google/protobuf/timestamp.proto";
 
 service AuthApi {
@@ -15,9 +15,11 @@ service TaskApi {
   rpc UpdateTask (UpdateTaskRequest) returns (UpdateTaskResponse);
   rpc CreateStatus (CreateStatusRequest) returns (CreateStatusResponse);
   rpc DeleteStatus (DeleteStatusRequest) returns (DeleteStatusResponse);
+  rpc GetAllStatuses (GetAllStatusesRequest) returns (GetAllStatusesResponse);
   rpc UpdateStatus (UpdateStatusRequest) returns (UpdateStatusResponse);
   rpc GetTasksByFilter (GetTasksByFilterRequest) returns (GetTasksByFilterResponse);
   rpc AssignTask (AssignTaskRequest) returns (AssignTaskResponse);
+  rpc UnAssignTask (UnAssignTaskRequest) returns (UnAssignTaskResponse);
 }
 
 message User {
@@ -145,6 +147,15 @@ message AssignTaskResponse {
   Task task = 1;
 }
 
+message UnAssignTaskRequest {
+  int64 taskId = 1;
+  string userId = 2;
+}
+
+message UnAssignTaskResponse {
+  Task task = 1;
+}
+
 message UpdateStatusRequest{
   int64 statusId = 1;
   string title = 2;
@@ -168,4 +179,9 @@ message GetTasksByFilterRequest{
   bool Completed = 4;
   string AssigneeId = 5;
   int64 StatusId = 6;
+}
+
+message GetAllStatusesRequest{}
+message GetAllStatusesResponse{
+  repeated Status statuses= 1;
 }

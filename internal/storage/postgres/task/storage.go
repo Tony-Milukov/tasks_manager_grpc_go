@@ -27,6 +27,7 @@ func New(db *sql.DB, log *slog.Logger) *Storage {
 // CreateTask is creating a new tasm with given params
 func (s *Storage) CreateTask(ctx context.Context, title, description, creatorId string, statusId int, due time.Time) (*models.Task, error) {
 	var id int
+
 	err := s.db.QueryRowContext(ctx, "INSERT INTO tasks (title, description, statusid, creatorId, due) VALUES ($1, $2, $3, $4, $5) RETURNING id", title, description, statusId, creatorId, due).Scan(&id)
 
 	if err != nil {
@@ -48,7 +49,7 @@ func (s *Storage) DeleteTask(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
-
+	// if no rows were deleted
 	if affected == 0 {
 		return appErrors.NothingToDelete
 	}
@@ -178,7 +179,6 @@ func (s *Storage) GetStatusById(ctx context.Context, id int) (*models.Status, er
 }
 
 // GetTaskById gets task by id
-// TODO: fix the not flund bug
 func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error) {
 	var found bool
 	var assignees []*models.Assignee
@@ -208,7 +208,6 @@ func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error)
 		return nil, err
 	}
 	if err = rows.Err(); err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -236,7 +235,7 @@ func (s *Storage) GetTaskById(ctx context.Context, id int) (*models.Task, error)
 		}
 
 		// get status if it is not null
-		if status != nil && statusId.Valid {
+		if statusId != nil && statusId.Valid {
 			status, err = s.GetStatusById(ctx, int(statusId.Int64))
 			if err != nil {
 				return nil, err
@@ -305,10 +304,21 @@ func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.T
 	op := "storage.GetCreatedTasksByUID"
 	log := s.log.With(op)
 	var tasks []*models.Task
+
+	// task assignees
+	// map key -> taskId
+	// value -> assignees array
 	assignees := make(map[int][]*models.Assignee)
+
+	//filter values
 	var values []any
+	// filter string queries
 	var filerQueries []string
+
+	// if there are no filters keyCount will be 1
 	keyCount := 1
+
+	// main query without filters
 	mainQuery := `SELECT t.id, t.title, t.description, t.creatorId,
 			   t.statusId, t.due, t.completed, ta.role, 
 			   ta.userId as assigneeId, u.email as assigneeEmail,
@@ -356,14 +366,16 @@ func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.T
 		values = append(values, filters.StatusId)
 	}
 
+	// if there are filters
 	if keyCount >= 2 {
 		mainQuery += " WHERE "
 	}
 
+	// build query
 	query := fmt.Sprintf(`%s %s`, mainQuery, strings.Join(filerQueries, " AND "))
-	fmt.Println(query)
 
 	rows, err := s.db.QueryContext(ctx, query, values...)
+
 	//close rows on end
 	defer rows.Close()
 
@@ -371,8 +383,6 @@ func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.T
 		log.Error("Error: ", err)
 		return nil, err
 	}
-
-	fmt.Println(rows)
 
 	//get every task by
 	for rows != nil && rows.Next() {
@@ -413,6 +423,7 @@ func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.T
 			completedWrapper = wrapperspb.Bool(completed.Bool)
 		}
 
+		// if there is an assignee
 		if assigneeId != nil && assigneeId.Valid {
 			assignees[id] = append(assignees[id],
 				&models.Assignee{
@@ -424,6 +435,9 @@ func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.T
 						Email: assigneeEmail.String}})
 		}
 
+		// if task with that id is not in the slice
+		// because if there are two rows with another assignee
+		//we only need to add one task
 		if !taskContainsId(tasks, id) {
 			// generate task model
 			tasks = append(tasks, &models.Task{
@@ -438,31 +452,100 @@ func (s *Storage) GetCreatedTasksByFilter(ctx context.Context, filters *models.T
 		}
 	}
 
+	// loop throw tasks and add assignees to struct
 	for _, task := range tasks {
-		fmt.Println(task)
-
 		if assignees[task.Id] != nil {
 			task.Assignees = assignees[task.Id]
 		}
 	}
-	fmt.Println(tasks)
 	return tasks, nil
 }
 
+// AssignTask this function assigns task to propped user and propped role
 func (s *Storage) AssignTask(ctx context.Context, userId, role string, taskId int) (*models.Task, error) {
 	op := "storage.AssignTask"
 	log := s.log.With(op)
 	var id int
+	// exec
 	err := s.db.QueryRowContext(ctx, "INSERT INTO task_assignees (taskId, role,userId) VALUES ($1, $2, $3) RETURNING id", taskId, role, userId).Scan(&id)
+
 	if err != nil {
+		// get detailed error
 		pqErr, ok := err.(*pq.Error)
+		// if there is already a row with that userId and taskId
 		if ok && pqErr.Code == "23505" {
 			return nil, appErrors.TaskAlreadyAssigned
 		}
 		log.Error("Error: ", err)
 		return nil, err
 	}
+	// get updated task
 	return s.GetTaskById(ctx, taskId)
+}
+
+// UnAssignTask this function un assigns task
+func (s *Storage) UnAssignTask(ctx context.Context, userId string, taskId int) (*models.Task, error) {
+	op := "storage.UnAssignTask"
+	log := s.log.With(op)
+
+	// exec
+	execRows, err := s.db.ExecContext(ctx, "DELETE FROM task_assignees ta WHERE ta.userid = $1 AND ta.taskid = $2", userId, taskId)
+
+	if err != nil {
+		log.Error("Error: ", err)
+		return nil, err
+	}
+
+	rowsAffected, err := execRows.RowsAffected()
+
+	if rowsAffected == 0 {
+		return nil, appErrors.TaskNotAssigned
+	}
+
+	if err != nil {
+		log.Error("Error: ", err)
+		return nil, err
+	}
+
+	// get updated task
+	return s.GetTaskById(ctx, taskId)
+}
+
+// GetAllStatuses this function gets all statuses
+func (s *Storage) GetAllStatuses(ctx context.Context) ([]*models.Status, error) {
+	op := "storage.GetAllStatuses"
+	log := s.log.With(op)
+	var statuses []*models.Status
+
+	// exec query
+	rows, err := s.db.QueryContext(ctx, "SELECT title, description, id FROM statuses")
+
+	//close the rows on the end
+	defer rows.Close()
+
+	if err != nil {
+		log.Error("Error: ", err)
+		return nil, err
+	}
+
+	for rows.Next() {
+		var id int
+		var title, description string
+		//get values from row
+		err = rows.Scan(&title, &description, &id)
+		statuses = append(statuses, &models.Status{
+			Id:          id,
+			Description: description,
+			Title:       title,
+		})
+		if err != nil {
+			log.Error("Error: ", err)
+			return nil, err
+		}
+
+	}
+
+	return statuses, nil
 }
 
 // taskContainsId this function checks if given slice of tasks contains given id

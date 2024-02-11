@@ -4,8 +4,8 @@ import "errors"
 
 var (
 	ErrUserExists         = errors.New("user with that Email already exists")
-	ErrUserNotExists      = errors.New("user with that do not exists")
-	ErrTaskNotExists      = errors.New("task with that do not exists")
+	ErrUserNotExists      = errors.New("user with that id do not exists")
+	ErrTaskNotExists      = errors.New("task with that id do not exists")
 	ErrInvalidCredentials = errors.New("invalid Credentials")
 	ErrPasswordIncorrect  = errors.New("password Is Incorrect")
 	InvalidToken          = errors.New("token is Incorrect")
@@ -16,4 +16,5 @@ var (
 	TaskAlreadyAssigned   = errors.New("task was already assigned to the user before")
 	ErrNoPermission       = errors.New("you have no permission to do that")
 	Internal              = errors.New("internal Server Error")
+	TaskNotAssigned       = errors.New("this task was not assigned to this user")
 )
