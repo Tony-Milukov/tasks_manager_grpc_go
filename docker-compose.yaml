@@ -7,13 +7,17 @@ services:
       - db
     ports:
       - 9800:9800
-
+    environment:
+      - DB_URL
+      - TOKEN_SECRET
+      - ENV
+      - GRPC_PORT
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
 
   db:
     image: postgres
     restart: always
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_PASSWORD: very_secure_password!....for_real
-      POSTGRES_DB: tasks
+

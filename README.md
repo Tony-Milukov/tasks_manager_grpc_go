@@ -46,20 +46,30 @@ How to start the project:
 
     5. Open terminal
 
-    6. Exec this command: "docker compose up"
+    7. ENVIROMENT
+
+          a. if you want to use default .env as example (postgres setted up in docker),
+          rename /.env.example to /.env
+          or rename and change ENV data. 
+
+          b. if you want to use .env on docker compose up
+             docker-compose --env-file your_file_name.env up
+      
+
+    8. Exec this command: "docker compose up"
 
     // if you want to test it
-    7. install postman https://www.postman.com/downloads/
+    9. install postman https://www.postman.com/downloads/
 
-    8. open postman
+    10. open postman
 
-    9. select grpc as protocol
+    11. select grpc as protocol
 
-    10. Import protoFile
+    12. Import protoFile
         select "import proto file";
         select api.proto from /proto/proto/api.proto
 
-    11. Select the needed method and click on "Send"
+    13. Select the needed method and click on "Send"
 
 Thank you, enjoy!
     

@@ -16,11 +16,9 @@ type Config struct {
 
 func MustGetConfig() *Config {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		log.Println("No example .env file found")
 	}
-
 	dbUrl := getEnv("DB_URL")
-	fmt.Printf("%s", dbUrl)
 	env := getEnv("ENV")
 	grpcPort := getEnv("GRPC_PORT")
 	tokenSecret := getEnv("GRPC_PORT")
@@ -36,7 +34,6 @@ func MustGetConfig() *Config {
 
 func getEnv(key string) string {
 	env := os.Getenv(key)
-
 	if env == "" {
 		panic(fmt.Sprintf("the env %s was not set", key))
 	}
