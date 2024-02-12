@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"os"
 	"sso_3.0/internal/domain/user"
@@ -28,7 +27,6 @@ func NewToken(user *user.Model) (string, error) {
 }
 func CheckToken(tokenStr string) (string, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		fmt.Println(os.Getenv("TOKEN_SECRET"))
 		return []byte(os.Getenv("TOKEN_SECRET")), nil
 	})
 
