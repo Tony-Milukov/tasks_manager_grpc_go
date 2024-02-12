@@ -45,7 +45,7 @@ func MigrateDb(url, path, op string) error {
 }
 
 func getFlags() (dbUrl, migrationsPath, op string) {
-	flag.StringVar(&dbUrl, "db-url", "", "Your connection url to the postgres  db")
+	flag.StringVar(&dbUrl, "db-url", "", "Your connection url to the postgres db")
 	flag.StringVar(&migrationsPath, "migrations-path", "", "Your connection url to the postgres  db")
 	flag.StringVar(&op, "op", "", "Migrations operator: up | down")
 	flag.Parse()

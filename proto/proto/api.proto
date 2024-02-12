@@ -23,7 +23,7 @@ service TaskApi {
 }
 
 message User {
-   string id = 1;
+  string id = 1;
   string email = 2;
 }
 
@@ -46,14 +46,14 @@ message TaskAssignee {
 }
 
 message Status {
-   int64 id = 3;
+  int64 id = 3;
   string title = 1;
   string description = 2;
 }
 
 message RegisterRequest {
-  string email = 1;
-  string password = 2;
+  string email = 1 ;
+  string password = 2 ;
 }
 
 message RegisterResponse {
